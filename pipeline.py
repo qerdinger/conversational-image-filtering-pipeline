@@ -104,6 +104,9 @@ class ELK:
             document=document
         )
         
+    def query(self, query):
+        return self.cluster.search(index=self.index, body=query)
+        
 
 elk_cluster = ELK()
 
@@ -151,4 +154,33 @@ def index_images(fpath):
             print(f"err: {filename}")
             print(ex)
             
-index_images("./samples")
+#index_images("./samples")
+
+def search_images(prompt, k=10):
+    print("computing prompt...")
+    query_embedding = compute_prompt_embedding(prompt)
+    resp = elk_cluster.query(
+        {
+            "size": k,
+            "knn": {
+                "field": "embedding",
+                "query_vector": query_embedding,
+                "k": k,
+                "num_candidates": 100
+            }
+        }
+    )
+    results = []
+
+    for hit in resp["hits"]["hits"]:
+
+        source = hit["_source"]
+
+        results.append({
+            "score": hit["_score"],
+            "filepath": source["filepath"],
+            "filename": source["filename"]
+        })
+    return results
+    
+print(search_images("with a computer", k=10))
